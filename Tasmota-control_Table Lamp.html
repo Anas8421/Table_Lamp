@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LAMP</title>
+<style>
+:root{--bg:#08090b;--dim:rgba(255,255,255,.35);--mut:rgba(255,255,255,.6);--ok:#34c759;--warn:#ffbd2e;--bad:#ff3b30;--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background-color:var(--bg);background-image:radial-gradient(circle at 50% 28%,#0f1117 0,#08090b 70%);color:var(--mut);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(24px,env(safe-area-inset-top)) 24px max(16px,env(safe-area-inset-bottom));overflow:hidden;position:relative;-webkit-font-smoothing:antialiased}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 28%,#362910 0,#15120a 45%,#08090b 80%);opacity:0;transition:opacity .9s;z-index:-1}
+body.room-lit::after{opacity:1}
+.top-bar{position:absolute;top:max(24px,env(safe-area-inset-top));right:28px;display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.03em;color:var(--dim);z-index:10;user-select:none}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .4s,box-shadow .4s}
+.connected .status-dot{background:var(--ok);box-shadow:0 0 8px rgba(52,199,89,.6)}
+.connecting .status-dot{background:var(--warn)}
+.offline .status-dot{background:var(--bad)}
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:400px;position:relative}
+.wire{width:1px;height:120px;background:linear-gradient(to bottom,transparent,#2a2e37);position:absolute;top:-120px;left:calc(50% - .5px)}
+.bulb-button{background:none;border:none;cursor:pointer;width:160px;height:190px;padding:0;outline:none;position:relative;-webkit-tap-highlight-color:transparent;transform-origin:80px 0;transition:transform .4s cubic-bezier(.2,.8,.2,1),opacity .4s}
+.bulb-button:focus-visible{outline:1px dotted rgba(255,255,255,.3);outline-offset:12px}
+.bulb-button.offline{opacity:.4}
+.bulb-button.on{animation:sway 6s ease-in-out infinite}
+svg{display:block;overflow:visible}
+.socket{fill:#22252c}
+.glass{fill:rgba(255,255,255,.03);stroke:rgba(255,255,255,.1);stroke-width:1.5;transition:fill .5s,stroke .5s}
+.filament{stroke:rgba(255,255,255,.2);stroke-width:2;stroke-linecap:round;fill:none;transition:stroke .4s,filter .4s}
+.bloom{fill:#ffb703;opacity:0;filter:blur(24px);transform-origin:80px 130px;transition:opacity .6s}
+.ring{fill:none;stroke:#ffd25e;stroke-width:2;opacity:0;transform-origin:80px 130px}
+.on .glass{fill:rgba(255,190,50,.18);stroke:rgba(255,210,94,.5);stroke-width:2}
+.on .filament{stroke:#fff;filter:drop-shadow(0 0 6px #ffd25e)}
+.on .bloom{opacity:.7;animation:breathe 4s ease-in-out infinite}
+.pop-on svg{animation:popon .45s cubic-bezier(.3,1.6,.5,1)}
+.pop-on .ring{animation:ringfx .9s cubic-bezier(.1,.8,.3,1)}
+.pop-on .glass{animation:gflash .7s ease-out}
+.pop-on .filament{animation:flick .6s ease-out}
+.pop-off svg{animation:popoff .5s ease-out}
+.pop-off .glass{animation:dimout .65s linear}
+@keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg)}}
+@keyframes breathe{0%,100%{opacity:.65;transform:scale(1)}50%{opacity:.82;transform:scale(1.08)}}
+@keyframes popon{0%{transform:translateY(8px) scale(.94)}35%{transform:translateY(-3px) scale(1.07)}100%{transform:none}}
+@keyframes popoff{0%{transform:translateY(8px) scale(.95);filter:brightness(1.5)}40%{transform:translateY(-2px) scale(1.02)}100%{transform:none;filter:brightness(1)}}
+@keyframes ringfx{0%{opacity:.8;transform:scale(.6)}100%{opacity:0;transform:scale(2.3)}}
+@keyframes gflash{0%{fill:rgba(255,190,50,0)}30%{fill:rgba(255,205,80,.6)}100%{fill:rgba(255,190,50,.18)}}
+@keyframes flick{0%{stroke:rgba(255,255,255,.2)}15%{stroke:#fff}30%{stroke:rgba(255,255,255,.2)}50%{stroke:#fff}100%{stroke:#fff}}
+@keyframes dimout{0%{fill:rgba(255,190,50,.18)}20%{fill:rgba(255,190,50,.03)}38%{fill:rgba(255,190,50,.16)}70%{fill:rgba(255,190,50,.04)}100%{fill:rgba(255,255,255,.03)}}
+.footer-bar{width:100%;max-width:480px;display:flex;justify-content:space-between;align-items:center;padding:12px 4px;z-index:10}
+.device-line{font-size:11px;letter-spacing:.06em;color:var(--dim);font-family:ui-monospace,Menlo,Consolas,monospace}
+.settings-trigger{background:transparent;border:none;color:var(--dim);cursor:pointer;width:36px;height:36px;border-radius:50%;display:grid;place-items:center}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal-card{width:100%;max-width:340px;background:#111318;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:18px;box-shadow:0 30px 60px rgba(0,0,0,.6);transform:translateY(12px);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+.modal-overlay.open .modal-card{transform:none}
+.modal-header{display:flex;justify-content:space-between;align-items:center}
+.modal-header h2{font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase}
+.modal-close{background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:20px;width:30px;height:30px}
+.field-group{display:flex;flex-direction:column;gap:6px}
+.field-group label{font-size:11px;color:var(--dim);letter-spacing:.04em}
+.field-input{width:100%;background:#08090b;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 14px;color:#fff;font-size:14px;outline:none;font-family:inherit}
+.field-input:focus{border-color:rgba(255,210,94,.4)}
+.save-btn{background:rgba(255,255,255,.9);color:#08090b;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:500;cursor:pointer;margin-top:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="status-badge" class="top-bar connecting">
+  <span class="status-dot"></span>
+  <span id="status-text">Connecting…</span>
+</div>
+
+<div class="stage">
+  <button id="bulb" class="bulb-button off" aria-label="Toggle lamp">
+    <div class="wire"></div>
+    <svg viewBox="0 0 160 220" xmlns="http://www.w3.org/2000/svg">
+      <circle class="bloom" cx="80" cy="130" r="75"/>
+      <circle class="ring" cx="80" cy="130" r="45"/>
+      <rect x="68" y="0" width="24" height="12" rx="2" class="socket"/>
+      <path d="M64 12h32l4 14H60z" fill="#2a2e38"/>
+      <rect x="62" y="26" width="36" height="8" rx="2" fill="#3a3f4b"/>
+      <rect x="66" y="34" width="28" height="30" rx="3" fill="#4a4f5c"/>
+      <path d="M66 41h28M66 48h28M66 55h28" stroke="#262a33" stroke-width="2"/>
+      <path class="glass" d="M66 60c0 10-4 16-12 24-14 14-26 28-26 48 0 28 23 50 52 50s52-22 52-50c0-20-12-34-26-48-8-8-12-14-12-24z"/>
+      <path class="filament" d="M70 156v-24l10 12 10-12v24"/>
+    </svg>
+  </button>
+</div>
+
+<footer class="footer-bar">
+  <div class="device-line" id="device-info"></div>
+  <button class="settings-trigger" id="open-settings" aria-label="Settings">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2" fill="#08090b"/><circle cx="15" cy="12" r="2" fill="#08090b"/><circle cx="8" cy="17" r="2" fill="#08090b"/></svg>
+  </button>
+</footer>
+
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-card">
+    <div class="modal-header"><h2>Preferences</h2><button class="modal-close" id="close-settings" aria-label="Close">&times;</button></div>
+    <div class="field-group"><label for="ip-input">Device IP address</label><input id="ip-input" class="field-input" inputmode="decimal"></div>
+    <div class="field-group"><label for="relay-input">Relay channel</label><input id="relay-input" class="field-input" inputmode="numeric"></div>
+    <button id="save-settings" class="save-btn">Save</button>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const get=(k,d)=>{try{return localStorage.getItem(k)||d}catch(e){return d}};
+const put=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+let IP=get("lamp_ip","192.168.68.110"),RL=get("lamp_relay","2");
+let prev=null,pending=0,popT,ac;
+const modal=$("settings-modal");
+
+function info(){$("device-info").textContent="LAMP \u2022 "+IP}
+function setStatus(s,t){$("status-badge").className="top-bar "+s;$("status-text").textContent=t}
+info();
+
+$("open-settings").onclick=()=>{$("ip-input").value=IP;$("relay-input").value=RL;modal.classList.add("open")};
+$("close-settings").onclick=()=>modal.classList.remove("open");
+modal.onclick=e=>{if(e.target===modal)modal.classList.remove("open")};
+
+const url=c=>"http://"+IP+"/cm?cmnd="+encodeURIComponent(c);
+async function req(u,opt){
+  const ctl=new AbortController();
+  const id=setTimeout(()=>ctl.abort(),4000);
+  try{return await fetch(u,{...opt,signal:ctl.signal})}finally{clearTimeout(id)}
+}
+// Returns JSON when readable, null when the device answered but the browser blocked reading (CORS).
+async function api(c){
+  try{
+    const r=await req(url(c));
+    return await r.json();
+  }catch(e){
+    await req(url("Power"+RL),{mode:"no-cors"}); // throws only if the device is truly unreachable
+    return null;
+  }
+}
+const readOn=d=>{const v=d["POWER"+RL]!==undefined?d["POWER"+RL]:d.POWER;return v===undefined?null:String(v).toUpperCase()==="ON"};
+
+function connected(){$("bulb").classList.remove("offline");setStatus("connected","Connected")}
+function offline(){$("bulb").classList.add("offline");setStatus("offline","Offline")}
+
+function applyState(on){
+  const b=$("bulb");
+  b.classList.toggle("on",on);
+  b.classList.toggle("off",!on);
+  document.body.classList.toggle("room-lit",on);
+  if(prev!==null&&prev!==on){
+    b.classList.remove("pop-on","pop-off");void b.offsetWidth;
+    b.classList.add(on?"pop-on":"pop-off");
+    clearTimeout(popT);popT=setTimeout(()=>b.classList.remove("pop-on","pop-off"),900);
+  }
+  prev=on;
+}
+
+function click(on){
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    if(ac.state==="suspended")ac.resume();
+    const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();
+    o.type="square";
+    o.frequency.setValueAtTime(on?2200:1500,t);
+    o.frequency.exponentialRampToValueAtTime(260,t+.035);
+    g.gain.setValueAtTime(.1,t);
+    g.gain.exponentialRampToValueAtTime(.001,t+.05);
+    o.connect(g);g.connect(ac.destination);
+    o.start(t);o.stop(t+.06);
+  }catch(e){}
+  try{if(navigator.vibrate)navigator.vibrate(on?14:9)}catch(e){}
+}
+
+async function poll(){
+  if(pending)return;
+  try{
+    const d=await api("Power"+RL);
+    connected();
+    if(d){const s=readOn(d);if(s!==null)applyState(s)}
+  }catch(e){offline()}
+}
+
+async function send(target){
+  pending++;
+  try{
+    const d=await api("Power"+RL+" "+(target?"On":"Off"));
+    connected();
+    if(d){const s=readOn(d);if(s!==null&&s!==target)applyState(s)}
+  }catch(e){
+    applyState(!target);
+    offline();
+  }finally{pending--}
+}
+
+$("bulb").onclick=()=>{
+  const target=prev!==true;
+  click(target);
+  applyState(target);   // instant feedback
+  send(target);
+};
+
+$("save-settings").onclick=()=>{
+  IP=$("ip-input").value.trim()||"192.168.68.110";
+  RL=$("relay-input").value.trim()||"2";
+  put("lamp_ip",IP);put("lamp_relay",RL);
+  info();modal.classList.remove("open");
+  prev=null;setStatus("connecting","Connecting\u2026");poll();
+};
+poll();
+setInterval(poll,5000);
+</script>
+</body>
+</html>
